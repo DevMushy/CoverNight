@@ -87,13 +87,13 @@ const firebaseConfig = {
   });
 
   // INIT user
-  db.collection("config").doc("votes").get().then((doc) => {
-    const allowedVotes = doc.exists ? doc.data().allowedVotes : 0;
-    db.collection("users").doc(userId).set({
-      allowedVotes,
-      votesUsed: 0
-    }, { merge: true });
+db.collection("config").doc("votes").onSnapshot(doc => {
+  if (!doc.exists) return;
+  userRef.update({
+    allowedVotes: doc.data().allowedVotes
   });
+});
+
 
   // ➕ ADD COVER
   document.getElementById("addBtn").onclick = async () => {
