@@ -71,7 +71,7 @@ const firebaseConfig = {
     db.collection("users").doc(userId).set({ votesUsed: 0 });
   }
 
-  let availableVotes = 1;
+  let availableVotes = 0;
   const pointsEl = document.getElementById("points");
 
   function updatePoints() {
@@ -88,7 +88,7 @@ const firebaseConfig = {
 
   // INIT user
   db.collection("config").doc("votes").get().then((doc) => {
-    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 0;
     db.collection("users").doc(userId).set({
       allowedVotes,
       votesUsed: 0
@@ -128,7 +128,7 @@ const firebaseConfig = {
     await db.collection("config").doc("votes").set({ allowedVotes: 1 });
     const users = await db.collection("users").get();
     users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
-    alert("Secondo voto sbloccato per tutti!");
+    alert("voto sbloccato per tutti!");
   };
 
   // ⛔ CLOSE VOTING
