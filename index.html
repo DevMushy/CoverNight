@@ -34,6 +34,7 @@
     <input id="photoUrlInput" placeholder="URL immagine" />
     <button id="addBtn">Aggiungi cover</button>
     <hr style="margin:12px 0">
+    <button id="addExtraVoteBtn">Aggiungi secondo voto a tutti</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
 
@@ -56,7 +57,6 @@ const firebaseConfig = {
   appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
   measurementId: "G-T45NH307EB"
 };
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
@@ -67,8 +67,8 @@ const firebaseConfig = {
     document.getElementById("admin").style.display = "none";
   }
 
-  // 👤 USER POINTS (2 punti)
-  let points = Number(localStorage.getItem("points") ?? 2);
+  // 👤 USER POINTS (inizialmente 1 voto)
+  let points = Number(localStorage.getItem("points") ?? 1);
   const pointsEl = document.getElementById("points");
 
   function updatePoints() {
@@ -118,6 +118,18 @@ const firebaseConfig = {
     points--;
     updatePoints();
   };
+
+  // ➕ AGGIUNGI SECONDO VOTO A TUTTI
+  document.getElementById("addExtraVoteBtn").addEventListener("click", async () => {
+    const snap = await db.collection("covers").get();
+    snap.forEach(async (doc) => {
+      await db.collection("covers").doc(doc.id).update({ votes: doc.data().votes + 1 });
+    });
+    // Aggiorna punti utenti solo se vuoi darli di nuovo
+    points = 1;
+    updatePoints();
+    alert("Tutti hanno ricevuto un secondo voto!");
+  });
 
   // ⛔ CHIUSURA VOTAZIONI
   document.getElementById("closeBtn").addEventListener("click", () => {
