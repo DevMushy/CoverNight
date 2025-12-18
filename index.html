@@ -91,13 +91,28 @@ const firebaseConfig = {
     updatePoints();
   });
 
-  // INIT user
-  db.collection("config").doc("votes").get().then((doc) => {
-    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
-    db.collection("users").doc(userId).set({
+  // INIT user + config default
+  (async () => {
+    // inizializza config/state se non esiste
+    const stateRef = db.collection("config").doc("state");
+    const stateSnap = await stateRef.get();
+    if (!stateSnap.exists) {
+      await stateRef.set({ open: false, closed: false });
+    }
+
+    // inizializza config/votes se non esiste
+    const votesRef = db.collection("config").doc("votes");
+    const votesSnap = await votesRef.get();
+    const allowedVotes = votesSnap.exists ? votesSnap.data().allowedVotes : 1;
+    if (!votesSnap.exists) {
+      await votesRef.set({ allowedVotes: 1 });
+    }
+
+    await db.collection("users").doc(userId).set({
       allowedVotes,
       votesUsed: 0
     }, { merge: true });
+  })();
   });
 
   // ➕ ADD COVER
@@ -137,10 +152,11 @@ const firebaseConfig = {
   };
 
   // 🔓 UNLOCK SECOND VOTE
+  // 🔓 UNLOCK SECOND VOTE (porta allowedVotes a 2)
   document.getElementById("unlockSecondVoteBtn").onclick = async () => {
-    await db.collection("config").doc("votes").set({ allowedVotes: 1 });
+    await db.collection("config").doc("votes").set({ allowedVotes: 2 });
     const users = await db.collection("users").get();
-    users.forEach((u) => u.ref.update({ allowedVotes: 1 }));
+    users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
     alert("Secondo voto sbloccato per tutti!");
   };
 
