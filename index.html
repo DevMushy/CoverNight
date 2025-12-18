@@ -121,10 +121,10 @@ const firebaseConfig = {
 
   // ➕ AGGIUNGI SECONDO VOTO A TUTTI
   document.getElementById("addExtraVoteBtn").addEventListener("click", async () => {
-    const snap = await db.collection("covers").get();
+   /* const snap = await db.collection("covers").get();
     snap.forEach(async (doc) => {
       await db.collection("covers").doc(doc.id).update({ votes: doc.data().votes + 1 });
-    });
+    });*/
     // Aggiorna punti utenti solo se vuoi darli di nuovo
     points = 1;
     updatePoints();
