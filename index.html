@@ -34,15 +34,12 @@
     <input id="photoUrlInput" placeholder="URL immagine" />
     <button id="addBtn">Aggiungi cover</button>
     <hr style="margin:12px 0">
-    <button id="addExtraVoteBtn">Aggiungi secondo voto a tutti</button>
+    <button id="unlockSecondVoteBtn">SBLOCCA SECONDO VOTO</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
 
-  <!-- VOTI -->
   <div id="points"></div>
   <div id="list"></div>
-
-  <!-- WINNER -->
   <div id="winner" class="winner hidden"></div>
 </div>
 
@@ -57,101 +54,96 @@ const firebaseConfig = {
   appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
   measurementId: "G-T45NH307EB"
 };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  // 🔐 ADMIN ACCESS
+  // 🔐 ADMIN
   const ADMIN_PASSWORD = "cover2025";
   const adminParam = new URLSearchParams(window.location.search).get("admin");
-  if (adminParam !== ADMIN_PASSWORD) {
-    document.getElementById("admin").style.display = "none";
+  if (adminParam !== ADMIN_PASSWORD) document.getElementById("admin").style.display = "none";
+
+  // 👤 USER IDENTIFICATION (localStorage + Firestore)
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    userId = crypto.randomUUID();
+    localStorage.setItem("userId", userId);
+    db.collection("users").doc(userId).set({ votesUsed: 0 });
   }
 
-  // 👤 USER POINTS (inizialmente 1 voto)
-  let points = Number(localStorage.getItem("points") ?? 1);
+  let availableVotes = 1;
   const pointsEl = document.getElementById("points");
 
   function updatePoints() {
-    pointsEl.innerHTML = `<p>Punti disponibili: <strong>${points}</strong></p>`;
-    localStorage.setItem("points", points);
+    pointsEl.innerHTML = `<p>Voti disponibili: <strong>${availableVotes}</strong></p>`;
   }
-  updatePoints();
 
-  // ➕ ADD COVER (IMMAGINE DA URL)
-  document.getElementById("addBtn").addEventListener("click", async () => {
-    const artist = document.getElementById("artistInput").value.trim();
-    const song = document.getElementById("songInput").value.trim();
-    const photoUrl = document.getElementById("photoUrlInput").value.trim();
-
-    if (!artist || !song || !photoUrl) {
-      alert("Compila tutti i campi");
-      return;
-    }
-
-    await db.collection("covers").add({
-      artist,
-      song,
-      photo: photoUrl,
-      votes: 0,
-    });
-
-    document.getElementById("artistInput").value = "";
-    document.getElementById("songInput").value = "";
-    document.getElementById("photoUrlInput").value = "";
+  // 🔄 Sync user votes
+  db.collection("users").doc(userId).onSnapshot((doc) => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    availableVotes = data.allowedVotes - data.votesUsed;
+    updatePoints();
   });
+
+  // INIT user
+  db.collection("config").doc("votes").get().then((doc) => {
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
+    db.collection("users").doc(userId).set({
+      allowedVotes,
+      votesUsed: 0
+    }, { merge: true });
+  });
+
+  // ➕ ADD COVER
+  document.getElementById("addBtn").onclick = async () => {
+    const artist = artistInput.value.trim();
+    const song = songInput.value.trim();
+    const photo = photoUrlInput.value.trim();
+    if (!artist || !song || !photo) return alert("Compila tutto");
+    await db.collection("covers").add({ artist, song, photo, votes: 0 });
+    artistInput.value = songInput.value = photoUrlInput.value = "";
+  };
 
   // 🗳️ VOTE
   window.vote = async (id) => {
-    if (points <= 0) {
-      alert("Hai finito i punti");
-      return;
-    }
-
-    const docRef = db.collection("covers").doc(id);
+    const userRef = db.collection("users").doc(userId);
+    const coverRef = db.collection("covers").doc(id);
 
     await db.runTransaction(async (t) => {
-      const d = await t.get(docRef);
-      if (!d.exists) return;
-      t.update(docRef, { votes: d.data().votes + 1 });
-    });
+      const userDoc = await t.get(userRef);
+      if (!userDoc.exists) return;
 
-    points--;
-    updatePoints();
+      const { votesUsed, allowedVotes } = userDoc.data();
+      if (votesUsed >= allowedVotes) throw "NO_VOTES";
+
+      const coverDoc = await t.get(coverRef);
+      t.update(coverRef, { votes: coverDoc.data().votes + 1 });
+      t.update(userRef, { votesUsed: votesUsed + 1 });
+    }).catch(() => alert("Hai finito i voti"));
   };
 
-  // ➕ AGGIUNGI SECONDO VOTO A TUTTI
-  document.getElementById("addExtraVoteBtn").addEventListener("click", async () => {
-   /* const snap = await db.collection("covers").get();
-    snap.forEach(async (doc) => {
-      await db.collection("covers").doc(doc.id).update({ votes: doc.data().votes + 1 });
-    });*/
-    // Aggiorna punti utenti solo se vuoi darli di nuovo
-    points = 1;
-    updatePoints();
-    alert("Tutti hanno ricevuto un secondo voto!");
-  });
+  // 🔓 UNLOCK SECOND VOTE
+  document.getElementById("unlockSecondVoteBtn").onclick = async () => {
+    await db.collection("config").doc("votes").set({ allowedVotes: 2 });
+    const users = await db.collection("users").get();
+    users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
+    alert("Secondo voto sbloccato per tutti!");
+  };
 
-  // ⛔ CHIUSURA VOTAZIONI
-  document.getElementById("closeBtn").addEventListener("click", () => {
+  // ⛔ CLOSE VOTING
+  document.getElementById("closeBtn").onclick = () => {
     db.collection("config").doc("state").set({ closed: true });
-  });
+  };
 
-  // 🔔 LISTENERS
-  db.collection("config").doc("state").onSnapshot((doc) => {
-    if (doc.exists && doc.data().closed) {
-      showWinner();
-    }
-  });
-
+  // LISTENERS
   db.collection("covers").onSnapshot((snap) => {
-    const list = document.getElementById("list");
     list.innerHTML = "";
-
     snap.forEach((d) => {
       const c = d.data();
       list.innerHTML += `
         <div class="card">
-          <img src="${c.photo}" alt="${c.artist}">
+          <img src="${c.photo}">
           <div style="flex:1">
             <strong>${c.artist}</strong><br>
             <small>${c.song}</small><br>
@@ -162,26 +154,21 @@ const firebaseConfig = {
     });
   });
 
-  // 🏆 WINNER SCREEN
-  async function showWinner() {
-    document.getElementById("list").classList.add("hidden");
+  // WINNER
+  db.collection("config").doc("state").onSnapshot(async (doc) => {
+    if (!doc.exists || !doc.data().closed) return;
+    list.classList.add("hidden");
     pointsEl.classList.add("hidden");
-
     const snap = await db.collection("covers").orderBy("votes", "desc").get();
-    if (snap.empty) return;
-
-    const winner = snap.docs[0].data();
-
-    const winnerEl = document.getElementById("winner");
-    winnerEl.innerHTML = `
+    const w = snap.docs[0].data();
+    winner.innerHTML = `
       <h2>🏆 Vincitore</h2>
-      <img src="${winner.photo}" style="width:120px;height:120px;border-radius:20px"><br><br>
-      <strong>${winner.artist}</strong><br>
-      <small>${winner.song}</small><br><br>
-      <p>Voti: ${winner.votes}</p>`;
-
-    winnerEl.classList.remove("hidden");
-  }
+      <img src="${w.photo}" style="width:120px;border-radius:20px"><br><br>
+      <strong>${w.artist}</strong><br>
+      <small>${w.song}</small><br><br>
+      <p>Voti: ${w.votes}</p>`;
+    winner.classList.remove("hidden");
+  });
 </script>
 </body>
 </html>
