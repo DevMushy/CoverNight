@@ -88,7 +88,7 @@ const firebaseConfig = {
 
   // INIT user
   db.collection("config").doc("votes").get().then((doc) => {
-    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 0;
     db.collection("users").doc(userId).set({
       allowedVotes,
       votesUsed: 0
@@ -127,7 +127,7 @@ const firebaseConfig = {
   document.getElementById("unlockSecondVoteBtn").onclick = async () => {
     await db.collection("config").doc("votes").set({ allowedVotes: 1 });
     const users = await db.collection("users").get();
-    users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
+    users.forEach((u) => u.ref.update({ allowedVotes: 1 }));
     alert("Secondo voto sbloccato per tutti!");
   };
 
@@ -172,3 +172,4 @@ const firebaseConfig = {
 </script>
 </body>
 </html>
+
