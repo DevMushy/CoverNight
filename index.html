@@ -88,7 +88,7 @@ const firebaseConfig = {
 
   // INIT user
   db.collection("config").doc("votes").get().then((doc) => {
-    const allowedVotes = doc.exists ? doc.data().allowedVotes : 0;
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
     db.collection("users").doc(userId).set({
       allowedVotes,
       votesUsed: 0
@@ -172,4 +172,5 @@ const firebaseConfig = {
 </script>
 </body>
 </html>
+
 
