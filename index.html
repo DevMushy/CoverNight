@@ -34,19 +34,13 @@
     <input id="photoUrlInput" placeholder="URL immagine" />
     <button id="addBtn">Aggiungi cover</button>
     <hr style="margin:12px 0">
-    <button id="openVotingBtn">APRI VOTAZIONI</button>
-    <button id="unlockSecondVoteBtn">SBLOCCA SECONDO VOTO</button>
+    <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
 
-  <div id="waiting" class="winner">
-  <h2>⏳ Votazioni non ancora aperte</h2>
-  <p>Attendi che l'organizzatore apra le votazioni</p>
-</div>
-
-<div id="points"></div>
-<div id="list"></div>
-<div id="winner" class="winner hidden"></div>
+  <div id="points"></div>
+  <div id="list"></div>
+  <div id="winner" class="winner hidden"></div>
 </div>
 
 <script>
@@ -60,6 +54,7 @@ const firebaseConfig = {
   appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
   measurementId: "G-T45NH307EB"
 };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
@@ -91,28 +86,13 @@ const firebaseConfig = {
     updatePoints();
   });
 
-  // INIT user + config default
-  (async () => {
-    // inizializza config/state se non esiste
-    const stateRef = db.collection("config").doc("state");
-    const stateSnap = await stateRef.get();
-    if (!stateSnap.exists) {
-      await stateRef.set({ open: false, closed: false });
-    }
-
-    // inizializza config/votes se non esiste
-    const votesRef = db.collection("config").doc("votes");
-    const votesSnap = await votesRef.get();
-    const allowedVotes = votesSnap.exists ? votesSnap.data().allowedVotes : 1;
-    if (!votesSnap.exists) {
-      await votesRef.set({ allowedVotes: 1 });
-    }
-
-    await db.collection("users").doc(userId).set({
+  // INIT user
+  db.collection("config").doc("votes").get().then((doc) => {
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
+    db.collection("users").doc(userId).set({
       allowedVotes,
       votesUsed: 0
     }, { merge: true });
-  })();
   });
 
   // ➕ ADD COVER
@@ -126,17 +106,9 @@ const firebaseConfig = {
   };
 
   // 🗳️ VOTE
-  // 🗳️ VOTE (solo se votazioni aperte)
-  let votingOpen = false;
-
   window.vote = async (id) => {
     const userRef = db.collection("users").doc(userId);
     const coverRef = db.collection("covers").doc(id);
-
-        if (!votingOpen) {
-      alert("Le votazioni non sono ancora aperte");
-      return;
-    }
 
     await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
@@ -152,45 +124,19 @@ const firebaseConfig = {
   };
 
   // 🔓 UNLOCK SECOND VOTE
-  // 🔓 UNLOCK SECOND VOTE (porta allowedVotes a 2)
   document.getElementById("unlockSecondVoteBtn").onclick = async () => {
-    await db.collection("config").doc("votes").set({ allowedVotes: 2 });
+    await db.collection("config").doc("votes").set({ allowedVotes: 1 });
     const users = await db.collection("users").get();
     users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
     alert("Secondo voto sbloccato per tutti!");
   };
 
   // ⛔ CLOSE VOTING
-  document.getElementById("openVotingBtn").onclick = () => {
-  db.collection("config").doc("state").set({ open: true, closed: false });
-  alert("Votazioni aperte!");
-};
-
   document.getElementById("closeBtn").onclick = () => {
     db.collection("config").doc("state").set({ closed: true });
   };
 
   // LISTENERS
-
-// Stato votazioni
-db.collection("config").doc("state").onSnapshot((doc) => {
-  const waiting = document.getElementById("waiting");
-  const listEl = document.getElementById("list");
-  const pointsEl = document.getElementById("points");
-
-  if (!doc.exists || !doc.data().open) {
-    votingOpen = false;
-    waiting.classList.remove("hidden");
-    listEl.classList.add("hidden");
-    pointsEl.classList.add("hidden");
-    return;
-  }
-
-  votingOpen = true;
-  waiting.classList.add("hidden");
-  listEl.classList.remove("hidden");
-  pointsEl.classList.remove("hidden");
-});
   db.collection("covers").onSnapshot((snap) => {
     list.innerHTML = "";
     snap.forEach((d) => {
