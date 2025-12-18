@@ -23,20 +23,19 @@
   </style>
 </head>
 <body>
-
 <div class="container">
   <h1>🎤 Cover Night</h1>
 
   <!-- ADMIN -->
   <div class="admin" id="admin">
     <h3>Admin</h3>
-    <input id="artistInput" placeholder="Nome cantante">
-    <input id="songInput" placeholder="Nome canzone">
-    <input id="photoInput" placeholder="URL immagine">
-    <button id="addCoverBtn">Aggiungi cover</button>
-    <hr>
-    <button id="addVoteBtn">AGGIUNGI SECONDO VOTO</button>
-    <button id="closeVotingBtn">CHIUDI VOTAZIONI</button>
+    <input id="artistInput" placeholder="Nome cantante" />
+    <input id="songInput" placeholder="Nome canzone" />
+    <input id="photoUrlInput" placeholder="URL immagine" />
+    <button id="addBtn">Aggiungi cover</button>
+    <hr style="margin:12px 0">
+    <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
+    <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
 
   <div id="points"></div>
@@ -45,150 +44,131 @@
 </div>
 
 <script>
-/* ================= FIREBASE ================= */
-firebase.initializeApp({
+  // 🔥 FIREBASE CONFIG
+const firebaseConfig = {
   apiKey: "AIzaSyC5E-yc4KskjoAsNqArf31l7CLu8K4vXYc",
   authDomain: "covernight-20b1c.firebaseapp.com",
   projectId: "covernight-20b1c",
   storageBucket: "covernight-20b1c.firebasestorage.app",
   messagingSenderId: "624721857728",
-  appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125"
-});
-const db = firebase.firestore();
-
-/* ================= ADMIN ================= */
-const ADMIN_PASSWORD = "cover2025";
-if (new URLSearchParams(location.search).get("admin") !== ADMIN_PASSWORD) {
-  document.getElementById("admin").remove();
-}
-
-/* ================= USER ================= */
-let userId = localStorage.getItem("userId");
-if (!userId) {
-  userId = crypto.randomUUID();
-  localStorage.setItem("userId", userId);
-}
-
-// crea utente SOLO se non esiste
-const userRef = db.collection("users").doc(userId);
-userRef.get().then(doc => {
-  if (!doc.exists) {
-    userRef.set({
-      votesUsed: 0,
-      allowedVotes: 1
-    });
-  }
-});
-
-/* ================= GLOBAL VOTES CONFIG ================= */
-db.collection("config").doc("votes").get().then(doc => {
-  if (!doc.exists) {
-    db.collection("config").doc("votes").set({ allowedVotes: 1 });
-  }
-});
-
-// sync allowedVotes globali
-db.collection("config").doc("votes").onSnapshot(doc => {
-  if (!doc.exists) return;
-  userRef.update({ allowedVotes: doc.data().allowedVotes });
-});
-
-/* ================= UI POINTS ================= */
-const pointsEl = document.getElementById("points");
-
-userRef.onSnapshot(doc => {
-  if (!doc.exists) return;
-  const { allowedVotes, votesUsed } = doc.data();
-  pointsEl.innerHTML = `<p>Voti disponibili: <strong>${allowedVotes - votesUsed}</strong></p>`;
-});
-
-/* ================= ADD COVER ================= */
-document.getElementById("addCoverBtn").onclick = async () => {
-  const artist = artistInput.value.trim();
-  const song = songInput.value.trim();
-  const photo = photoInput.value.trim();
-  if (!artist || !song || !photo) return alert("Compila tutto");
-
-  await db.collection("covers").add({
-    artist,
-    song,
-    photo,
-    votes: 0
-  });
-
-  artistInput.value = songInput.value = photoInput.value = "";
+  appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
+  measurementId: "G-T45NH307EB"
 };
 
-/* ================= VOTE ================= */
-window.vote = async (coverId) => {
-  const coverRef = db.collection("covers").doc(coverId);
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  try {
-    await db.runTransaction(async t => {
+  // 🔐 ADMIN
+  const ADMIN_PASSWORD = "cover2025";
+  const adminParam = new URLSearchParams(window.location.search).get("admin");
+  if (adminParam !== ADMIN_PASSWORD) document.getElementById("admin").style.display = "none";
+
+  // 👤 USER IDENTIFICATION (localStorage + Firestore)
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    userId = crypto.randomUUID();
+    localStorage.setItem("userId", userId);
+    db.collection("users").doc(userId).set({ votesUsed: 0 });
+  }
+
+  let availableVotes = 1;
+  const pointsEl = document.getElementById("points");
+
+  function updatePoints() {
+    pointsEl.innerHTML = `<p>Voti disponibili: <strong>${availableVotes}</strong></p>`;
+  }
+
+  // 🔄 Sync user votes
+  db.collection("users").doc(userId).onSnapshot((doc) => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    availableVotes = data.allowedVotes - data.votesUsed;
+    updatePoints();
+  });
+
+  // INIT user
+  db.collection("config").doc("votes").get().then((doc) => {
+    const allowedVotes = doc.exists ? doc.data().allowedVotes : 1;
+    db.collection("users").doc(userId).set({
+      allowedVotes,
+      votesUsed: 0
+    }, { merge: true });
+  });
+
+  // ➕ ADD COVER
+  document.getElementById("addBtn").onclick = async () => {
+    const artist = artistInput.value.trim();
+    const song = songInput.value.trim();
+    const photo = photoUrlInput.value.trim();
+    if (!artist || !song || !photo) return alert("Compila tutto");
+    await db.collection("covers").add({ artist, song, photo, votes: 0 });
+    artistInput.value = songInput.value = photoUrlInput.value = "";
+  };
+
+  // 🗳️ VOTE
+  window.vote = async (id) => {
+    const userRef = db.collection("users").doc(userId);
+    const coverRef = db.collection("covers").doc(id);
+
+    await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
-      const coverDoc = await t.get(coverRef);
-
-      if (!userDoc.exists || !coverDoc.exists) return;
+      if (!userDoc.exists) return;
 
       const { votesUsed, allowedVotes } = userDoc.data();
       if (votesUsed >= allowedVotes) throw "NO_VOTES";
 
-      t.update(userRef, { votesUsed: votesUsed + 1 });
+      const coverDoc = await t.get(coverRef);
       t.update(coverRef, { votes: coverDoc.data().votes + 1 });
+      t.update(userRef, { votesUsed: votesUsed + 1 });
+    }).catch(() => alert("Hai finito i voti"));
+  };
+
+  // 🔓 UNLOCK SECOND VOTE
+  document.getElementById("unlockSecondVoteBtn").onclick = async () => {
+    await db.collection("config").doc("votes").set({ allowedVotes: 1 });
+    const users = await db.collection("users").get();
+    users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
+    alert("Secondo voto sbloccato per tutti!");
+  };
+
+  // ⛔ CLOSE VOTING
+  document.getElementById("closeBtn").onclick = () => {
+    db.collection("config").doc("state").set({ closed: true });
+  };
+
+  // LISTENERS
+  db.collection("covers").onSnapshot((snap) => {
+    list.innerHTML = "";
+    snap.forEach((d) => {
+      const c = d.data();
+      list.innerHTML += `
+        <div class="card">
+          <img src="${c.photo}">
+          <div style="flex:1">
+            <strong>${c.artist}</strong><br>
+            <small>${c.song}</small><br>
+            <small>Voti: ${c.votes}</small>
+          </div>
+          <button onclick="vote('${d.id}')">Vota</button>
+        </div>`;
     });
-  } catch {
-    alert("Hai finito i voti");
-  }
-};
-
-/* ================= LIST ================= */
-db.collection("covers").onSnapshot(snap => {
-  list.innerHTML = "";
-  snap.forEach(doc => {
-    const c = doc.data();
-    list.innerHTML += `
-      <div class="card">
-        <img src="${c.photo}">
-        <div style="flex:1">
-          <strong>${c.artist}</strong><br>
-          <small>${c.song}</small><br>
-          <small>Voti: ${c.votes}</small>
-        </div>
-        <button onclick="vote('${doc.id}')">Vota</button>
-      </div>
-    `;
   });
-});
 
-/* ================= ADD SECOND VOTE ================= */
-document.getElementById("addVoteBtn").onclick = async () => {
-  await db.collection("config").doc("votes").set({ allowedVotes: 2 });
-  alert("Secondo voto sbloccato!");
-};
-
-/* ================= CLOSE + WINNER ================= */
-document.getElementById("closeVotingBtn").onclick = async () => {
-  await db.collection("config").doc("state").set({ closed: true });
-};
-
-db.collection("config").doc("state").onSnapshot(async doc => {
-  if (!doc.exists || !doc.data().closed) return;
-
-  list.classList.add("hidden");
-  pointsEl.classList.add("hidden");
-
-  const snap = await db.collection("covers").orderBy("votes", "desc").get();
-  const w = snap.docs[0].data();
-
-  winner.innerHTML = `
-    <h2>🏆 Vincitore</h2>
-    <img src="${w.photo}" style="width:120px;border-radius:20px"><br><br>
-    <strong>${w.artist}</strong><br>
-    <small>${w.song}</small><br><br>
-    <p>Voti: ${w.votes}</p>
-  `;
-  winner.classList.remove("hidden");
-});
+  // WINNER
+  db.collection("config").doc("state").onSnapshot(async (doc) => {
+    if (!doc.exists || !doc.data().closed) return;
+    list.classList.add("hidden");
+    pointsEl.classList.add("hidden");
+    const snap = await db.collection("covers").orderBy("votes", "desc").get();
+    const w = snap.docs[0].data();
+    winner.innerHTML = `
+      <h2>🏆 Vincitore</h2>
+      <img src="${w.photo}" style="width:120px;border-radius:20px"><br><br>
+      <strong>${w.artist}</strong><br>
+      <small>${w.song}</small><br><br>
+      <p>Voti: ${w.votes}</p>`;
+    winner.classList.remove("hidden");
+  });
 </script>
 </body>
 </html>
