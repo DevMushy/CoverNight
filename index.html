@@ -34,7 +34,7 @@
     <input id="photoUrlInput" placeholder="URL immagine" />
     <button id="addBtn">Aggiungi cover</button>
     <hr style="margin:12px 0">
-    <button id="unlockSecondVoteBtn">SBLOCCA SECONDO VOTO</button>
+    <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
 
@@ -125,7 +125,7 @@ const firebaseConfig = {
 
   // 🔓 UNLOCK SECOND VOTE
   document.getElementById("unlockSecondVoteBtn").onclick = async () => {
-    await db.collection("config").doc("votes").set({ allowedVotes: 2 });
+    await db.collection("config").doc("votes").set({ allowedVotes: 1 });
     const users = await db.collection("users").get();
     users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
     alert("Secondo voto sbloccato per tutti!");
