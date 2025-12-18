@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,138 +11,211 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body { margin:0; font-family:system-ui; background:#0f0f0f; color:#fff; display:flex; justify-content:center; padding:20px; }
-    .container { width:100%; max-width:420px; }
-    h1 { text-align:center; }
-    .card { background:#1c1c1c; border-radius:16px; padding:16px; margin-bottom:12px; display:flex; gap:12px; align-items:center; }
-    img { width:64px; height:64px; border-radius:12px; object-fit:cover; }
-    button { background:#fff; color:#000; border:none; border-radius:12px; padding:8px 12px; font-weight:600; cursor:pointer; }
-    input { width:100%; margin-bottom:8px; padding:10px; border-radius:10px; border:none; }
-    .admin { background:#151515; padding:16px; border-radius:16px; margin-bottom:20px; }
-    .hidden { display:none; }
-    .winner { text-align:center; background:#151515; padding:20px; border-radius:20px; }
+    body {
+      margin: 0;
+      font-family: system-ui;
+      background: #0f0f0f;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .card {
+      background: #1c1c1c;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    img {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    button {
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    input {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+    }
+
+    .admin {
+      background: #151515;
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .winner {
+      text-align: center;
+      background: #151515;
+      padding: 20px;
+      border-radius: 20px;
+    }
   </style>
 </head>
-<body>
-<div class="container">
-  <h1>🎤 Cover Night</h1>
 
-  <!-- ADMIN -->
-  <div class="admin" id="admin">
-    <h3>Admin</h3>
-    <input id="artistInput" placeholder="Nome cantante" />
-    <input id="songInput" placeholder="Nome canzone" />
-    <input id="photoUrlInput" placeholder="URL immagine" />
-    <button id="addBtn">Aggiungi cover</button>
-    <hr style="margin:12px 0">
-    <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
-    <button id="closeBtn">CHIUDI VOTAZIONI</button>
+<body>
+  <div class="container">
+    <h1>🎤 Cover Night</h1>
+
+    <!-- ADMIN -->
+    <div class="admin" id="admin">
+      <h3>Admin</h3>
+      <input id="artistInput" placeholder="Nome cantante" />
+      <input id="songInput" placeholder="Nome canzone" />
+      <input id="photoUrlInput" placeholder="URL immagine" />
+      <button id="addBtn">Aggiungi cover</button>
+      <hr style="margin:12px 0">
+      <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
+      <button id="closeBtn">CHIUDI VOTAZIONI</button>
+    </div>
+
+    <div id="points"></div>
+    <div id="list"></div>
+    <div id="winner" class="winner hidden"></div>
   </div>
 
-  <div id="points"></div>
-  <div id="list"></div>
-  <div id="winner" class="winner hidden"></div>
-</div>
+  <script>
+    // 🔥 FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyC5E-yc4KskjoAsNqArf31l7CLu8K4vXYc",
+      authDomain: "covernight-20b1c.firebaseapp.com",
+      projectId: "covernight-20b1c",
+      storageBucket: "covernight-20b1c.firebasestorage.app",
+      messagingSenderId: "624721857728",
+      appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
+      measurementId: "G-T45NH307EB"
+    };
 
-<script>
-  // 🔥 FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "AIzaSyC5E-yc4KskjoAsNqArf31l7CLu8K4vXYc",
-  authDomain: "covernight-20b1c.firebaseapp.com",
-  projectId: "covernight-20b1c",
-  storageBucket: "covernight-20b1c.firebasestorage.app",
-  messagingSenderId: "624721857728",
-  appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125",
-  measurementId: "G-T45NH307EB"
-};
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+    // 🔐 ADMIN
+    const ADMIN_PASSWORD = "cover2025";
+    const adminParam = new URLSearchParams(window.location.search).get("admin");
+    if (adminParam !== ADMIN_PASSWORD) document.getElementById("admin").style.display = "none";
 
-  // 🔐 ADMIN
-  const ADMIN_PASSWORD = "cover2025";
-  const adminParam = new URLSearchParams(window.location.search).get("admin");
-  if (adminParam !== ADMIN_PASSWORD) document.getElementById("admin").style.display = "none";
+    // 👤 USER IDENTIFICATION (localStorage + Firestore)
+    let userId = localStorage.getItem("userId");
+    if (!userId) {
+      userId = crypto.randomUUID();
+      localStorage.setItem("userId", userId);
+      db.collection("users").doc(userId).set({ votesUsed: 0 });
+    }
 
-  // 👤 USER IDENTIFICATION (localStorage + Firestore)
-  let userId = localStorage.getItem("userId");
-  if (!userId) {
-    userId = crypto.randomUUID();
-    localStorage.setItem("userId", userId);
-    db.collection("users").doc(userId).set({ votesUsed: 0 });
-  }
-
-  let availableVotes = 0;
-  const pointsEl = document.getElementById("points");
-
-  function updatePoints() {
-    pointsEl.innerHTML = `<p>Voti disponibili: <strong>${availableVotes}</strong></p>`;
-  }
-
-  // 🔄 Sync user votes
-  db.collection("users").doc(userId).onSnapshot((doc) => {
-    if (!doc.exists) return;
-    const data = doc.data();
-    availableVotes = data.allowedVotes - data.votesUsed;
-    updatePoints();
-  });
-
-  // INIT user
-db.collection("config").doc("votes").onSnapshot(doc => {
-  if (!doc.exists) return;
-  userRef.update({
-    allowedVotes: doc.data().allowedVotes
-  });
-});
-
-
-  // ➕ ADD COVER
-  document.getElementById("addBtn").onclick = async () => {
-    const artist = artistInput.value.trim();
-    const song = songInput.value.trim();
-    const photo = photoUrlInput.value.trim();
-    if (!artist || !song || !photo) return alert("Compila tutto");
-    await db.collection("covers").add({ artist, song, photo, votes: 0 });
-    artistInput.value = songInput.value = photoUrlInput.value = "";
-  };
-
-  // 🗳️ VOTE
-  window.vote = async (id) => {
     const userRef = db.collection("users").doc(userId);
-    const coverRef = db.collection("covers").doc(id);
 
-    await db.runTransaction(async (t) => {
-      const userDoc = await t.get(userRef);
-      if (!userDoc.exists) return;
+    userRef.get().then((doc) => {
+      if (!doc.exists) {
+        userRef.set({
+          votesUsed: 0,
+          allowedVotes: 1
+        });
+      }
+    });
 
-      const { votesUsed, allowedVotes } = userDoc.data();
-      if (votesUsed >= allowedVotes) throw "NO_VOTES";
+    let availableVotes = 0;
+    const pointsEl = document.getElementById("points");
 
-      const coverDoc = await t.get(coverRef);
-      t.update(coverRef, { votes: coverDoc.data().votes + 1 });
-      t.update(userRef, { votesUsed: votesUsed + 1 });
-    }).catch(() => alert("Hai finito i voti"));
-  };
+    function updatePoints() {
+      pointsEl.innerHTML = `<p>Voti disponibili: <strong>${availableVotes}</strong></p>`;
+    }
 
-  // 🔓 UNLOCK SECOND VOTE
-  document.getElementById("unlockSecondVoteBtn").onclick = async () => {
-    await db.collection("config").doc("votes").set({ allowedVotes: 1 });
-    const users = await db.collection("users").get();
-    users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
-    alert("voto sbloccato per tutti!");
-  };
+    // 🔄 Sync user votes
+    db.collection("users").doc(userId).onSnapshot((doc) => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      availableVotes = data.allowedVotes - data.votesUsed;
+      updatePoints();
+    });
 
-  // ⛔ CLOSE VOTING
-  document.getElementById("closeBtn").onclick = () => {
-    db.collection("config").doc("state").set({ closed: true });
-  };
+    // INIT user
+    db.collection("config").doc("votes").onSnapshot(doc => {
+      if (!doc.exists) return;
+      userRef.update({
+        allowedVotes: doc.data().allowedVotes
+      });
+    });
 
-  // LISTENERS
-  db.collection("covers").onSnapshot((snap) => {
-    list.innerHTML = "";
-    snap.forEach((d) => {
-      const c = d.data();
-      list.innerHTML += `
+
+    // ➕ ADD COVER
+    document.getElementById("addBtn").onclick = async () => {
+      const artist = artistInput.value.trim();
+      const song = songInput.value.trim();
+      const photo = photoUrlInput.value.trim();
+      if (!artist || !song || !photo) return alert("Compila tutto");
+      await db.collection("covers").add({ artist, song, photo, votes: 0 });
+      artistInput.value = songInput.value = photoUrlInput.value = "";
+    };
+
+    // 🗳️ VOTE
+    window.vote = async (id) => {
+      const userRef = db.collection("users").doc(userId);
+      const coverRef = db.collection("covers").doc(id);
+
+      await db.runTransaction(async (t) => {
+        const userDoc = await t.get(userRef);
+        if (!userDoc.exists) return;
+
+        const { votesUsed, allowedVotes } = userDoc.data();
+        if (votesUsed >= allowedVotes) throw "NO_VOTES";
+
+        const coverDoc = await t.get(coverRef);
+        t.update(coverRef, { votes: coverDoc.data().votes + 1 });
+        t.update(userRef, { votesUsed: votesUsed + 1 });
+      }).catch(() => alert("Hai finito i voti"));
+    };
+
+    // 🔓 UNLOCK SECOND VOTE
+    document.getElementById("unlockSecondVoteBtn").onclick = async () => {
+      await db.collection("config").doc("votes").set({ allowedVotes: 1 });
+      const users = await db.collection("users").get();
+      users.forEach((u) => u.ref.update({ allowedVotes: 2 }));
+      alert("voto sbloccato per tutti!");
+    };
+
+    // ⛔ CLOSE VOTING
+    document.getElementById("closeBtn").onclick = () => {
+      db.collection("config").doc("state").set({ closed: true });
+    };
+
+    // LISTENERS
+    db.collection("covers").onSnapshot((snap) => {
+      list.innerHTML = "";
+      snap.forEach((d) => {
+        const c = d.data();
+        list.innerHTML += `
         <div class="card">
           <img src="${c.photo}">
           <div style="flex:1">
@@ -151,24 +225,25 @@ db.collection("config").doc("votes").onSnapshot(doc => {
           </div>
           <button onclick="vote('${d.id}')">Vota</button>
         </div>`;
+      });
     });
-  });
 
-  // WINNER
-  db.collection("config").doc("state").onSnapshot(async (doc) => {
-    if (!doc.exists || !doc.data().closed) return;
-    list.classList.add("hidden");
-    pointsEl.classList.add("hidden");
-    const snap = await db.collection("covers").orderBy("votes", "desc").get();
-    const w = snap.docs[0].data();
-    winner.innerHTML = `
+    // WINNER
+    db.collection("config").doc("state").onSnapshot(async (doc) => {
+      if (!doc.exists || !doc.data().closed) return;
+      list.classList.add("hidden");
+      pointsEl.classList.add("hidden");
+      const snap = await db.collection("covers").orderBy("votes", "desc").get();
+      const w = snap.docs[0].data();
+      winner.innerHTML = `
       <h2>🏆 Vincitore</h2>
       <img src="${w.photo}" style="width:120px;border-radius:20px"><br><br>
       <strong>${w.artist}</strong><br>
       <small>${w.song}</small><br><br>
       <p>Voti: ${w.votes}</p>`;
-    winner.classList.remove("hidden");
-  });
-</script>
+      winner.classList.remove("hidden");
+    });
+  </script>
 </body>
+
 </html>
