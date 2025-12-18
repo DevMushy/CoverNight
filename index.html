@@ -36,7 +36,13 @@
     <hr style="margin:12px 0">
     <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
+    <button id="closeBtn">CHIUDI VOTAZIONI</button>
   </div>
+
+<div id="waiting" class="winner hidden">
+<h2>⏳ Votazioni non ancora aperte</h2>
+<p>Attendi che l'organizzatore apra le votazioni</p>
+</div>
 
   <div id="points"></div>
   <div id="list"></div>
@@ -132,9 +138,11 @@ const firebaseConfig = {
   };
 
   // ⛔ CLOSE VOTING
-  document.getElementById("closeBtn").onclick = () => {
-    db.collection("config").doc("state").set({ closed: true });
-  };
+db.collection("config").doc("state").set({
+  open: true,
+  closed: false
+});
+
 
   // LISTENERS
   db.collection("covers").onSnapshot((snap) => {
