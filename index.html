@@ -38,6 +38,8 @@
     <hr style="margin:12px 0">
     <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
     <button id="closeBtn">CHIUDI VOTAZIONI</button>
+    <button onclick="removeVote()">TOGLI VOTO </button>
+
   </div>
 
   <div id="points"></div>
@@ -140,50 +142,69 @@
   };
 
   // HIDE/SHOW INDIVIDUAL COVER
-  function toggleCover(id) {
-    const coverRef = db.collection("covers").doc(id);
-    coverRef.get().then(doc => {
-      if (!doc.exists) return;
-      coverRef.update({ hidden: !doc.data().hidden });
-    });
-  }
+function toggleCover(id) {
+  const ref = db.collection("covers").doc(id);
+  ref.get().then(doc => {
+    if (!doc.exists) return;
+    ref.update({ hidden: !doc.data().hidden });
+  });
+}
+
 
   // REMOVE VOTE ADMIN (solo utenti con voti rimasti)
-  async function removeVote() {
-    const users = await db.collection("users").get();
-    users.forEach(u => {
-      const data = u.data();
-      if (data.votesUsed < data.allowedVotes) {
-        u.ref.update({ allowedVotes: data.allowedVotes - 1 });
-      }
-    });
-    alert("Voto rimosso agli utenti che non hanno ancora votato");
-  }
+async function removeVote() {
+  const usersSnap = await db.collection("users").get();
+
+  usersSnap.forEach(u => {
+    const data = u.data();
+
+    // solo chi NON ha ancora usato tutti i voti
+    if (data.votesUsed < data.allowedVotes && data.allowedVotes > 0) {
+      u.ref.update({
+        allowedVotes: data.allowedVotes - 1
+      });
+    }
+  });
+
+  alert("Tolto 1 voto agli utenti che non avevano ancora votato");
+}
+
 
 db.collection("covers").onSnapshot(snap => {
   const list = document.getElementById("list");
   list.innerHTML = "";
+
   snap.forEach(d => {
     const c = d.data();
-    const hiddenClass = c.hidden ? 'hidden' : '';
+
+    // gli utenti NON admin non vedono le cover nascoste
+    if (c.hidden && adminParam !== ADMIN_PASSWORD) return;
+
     list.innerHTML += `
-    <div class="card ${hiddenClass}">
-      <img src="${c.photo}">
-      <div style="flex:1">
-        <strong>${c.artist}</strong><br>
-        <small>${c.song}</small><br>
-        <small>Voti: ${c.votes}</small>
+      <div class="card">
+        <img src="${c.photo}">
+        <div style="flex:1">
+          <strong>${c.artist}</strong><br>
+          <small>${c.song}</small><br>
+          <small>Voti: ${c.votes}</small>
+        </div>
+
+        ${
+          adminParam === ADMIN_PASSWORD
+            ? `<button onclick="toggleCover('${d.id}')">
+                 ${c.hidden ? 'Mostra' : 'Nascondi'}
+               </button>`
+            : `<button onclick="vote('${d.id}')">Vota</button>`
+        }
       </div>
-      ${adminParam === ADMIN_PASSWORD 
-        ? `<button onclick="toggleCover('${d.id}')">${c.hidden ? 'Mostra' : 'Nascondi'}</button>
-           <button onclick="removeVote()">Togli un voto</button>`
-        : `<button onclick="vote('${d.id}')">Vota</button>`}
-    </div>`;
+    `;
   });
 });
+
 
 
 </script>
 </body>
 </html>
+
 
