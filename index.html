@@ -146,16 +146,21 @@
   };
 
   // TOGLI VOTO ADMIN (tutti gli utenti)
-  async function removeVote() {
-    const usersSnap = await db.collection("users").get();
-    usersSnap.forEach(u => {
-      const data = u.data();
-      if ((data.allowedVotes || 0) > 0) {
-        u.ref.update({ allowedVotes: data.allowedVotes - 1 });
-      }
-    });
-    alert("-1 voto tolto a tutti gli utenti");
-  }
+async function removeVote() {
+  const usersSnap = await db.collection("users").get();
+  usersSnap.forEach(u => {
+    const data = u.data();
+    // solo utenti che hanno ancora voti disponibili
+    const remainingVotes = data.allowedVotes - data.votesUsed;
+    if (remainingVotes > 0) {
+      u.ref.update({
+        allowedVotes: data.allowedVotes - 1
+      });
+    }
+  });
+  alert("Tolto 1 voto agli utenti che non avevano ancora votato");
+}
+
 
   // HIDE/SHOW INDIVIDUAL COVER
   function toggleCover(id) {
@@ -196,3 +201,4 @@
 </script>
 </body>
 </html>
+
