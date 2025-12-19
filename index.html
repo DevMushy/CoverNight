@@ -60,7 +60,7 @@
   const db = firebase.firestore();
 
   // ADMIN
-  const ADMIN_PASSWORD = "cover2025";
+  const ADMIN_PASSWORD = "2025";
   const adminParam = new URLSearchParams(window.location.search).get("admin");
   const adminPanel = document.getElementById("admin");
   if (adminParam !== ADMIN_PASSWORD) adminPanel.style.display = "none";
@@ -100,7 +100,7 @@
     userRef.update({ allowedVotes: doc.data().allowedVotes });
   });
 
-  // ADD COVER
+  // ADD 
   document.getElementById("addBtn").onclick = async () => {
     const artist = artistInput.value.trim();
     const song = songInput.value.trim();
@@ -160,26 +160,30 @@
     alert("Voto rimosso agli utenti che non hanno ancora votato");
   }
 
-  // LISTENER COVERS
-  db.collection("covers").onSnapshot(snap => {
-    const list = document.getElementById("list");
-    list.innerHTML = "";
-    snap.forEach(d => {
-      const c = d.data();
-      const hiddenClass = c.hidden ? 'hidden' : '';
-      list.innerHTML += `
-      <div class="card ${hiddenClass}">
-        <img src="${c.photo}">
-        <div style="flex:1">
-          <strong>${c.artist}</strong><br>
-          <small>${c.song}</small><br>
-          <small>Voti: ${c.votes}</small>
-        </div>
-        ${adminParam === ADMIN_PASSWORD ? `<button onclick="toggleCover('${d.id}')">${c.hidden ? 'Mostra' : 'Nascondi'}</button>` : `<button onclick="vote('${d.id}')">Vota</button>`}
-      </div>`;
-    });
+db.collection("covers").onSnapshot(snap => {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  snap.forEach(d => {
+    const c = d.data();
+    const hiddenClass = c.hidden ? 'hidden' : '';
+    list.innerHTML += `
+    <div class="card ${hiddenClass}">
+      <img src="${c.photo}">
+      <div style="flex:1">
+        <strong>${c.artist}</strong><br>
+        <small>${c.song}</small><br>
+        <small>Voti: ${c.votes}</small>
+      </div>
+      ${adminParam === ADMIN_PASSWORD 
+        ? `<button onclick="toggleCover('${d.id}')">${c.hidden ? 'Mostra' : 'Nascondi'}</button>
+           <button onclick="removeVote()">Togli un voto</button>`
+        : `<button onclick="vote('${d.id}')">Vota</button>`}
+    </div>`;
   });
+});
+
 
 </script>
 </body>
 </html>
+
