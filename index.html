@@ -247,7 +247,7 @@ db.collection("config").doc("state").onSnapshot(async doc => {
   pointsEl.classList.add("hidden");
   const snap = await db.collection("covers").orderBy("votes", "desc").get();
   const w = snap.docs[0].data();
-  winner.innerHTML = `<h2>🏆 Vincitore</h2><img src="${w.photo}" style="width:100%;border-radius:20px"><br><strong>${w.artist}</strong><br>${w.song}<br><p>Voti: ${w.votes}</p>`;
+  winner.innerHTML = `<h2>🏆 Vincitore</h2><img src="${w.photo}" style="width:100%;height: 20rem;border-radius:20px"><br><strong>${w.artist}</strong><br>${w.song}<br><p>Voti: ${w.votes}</p>`;
   winner.classList.remove("hidden");
 });
 
@@ -256,5 +256,6 @@ db.collection("config").doc("state").onSnapshot(async doc => {
 </body>
 
 </html>
+
 
 
