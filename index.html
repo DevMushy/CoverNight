@@ -1,4 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cover Night Voting</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { margin:0; font-family:system-ui; background:#0f0f0f; color:#fff; display:flex; justify-content:center; padding:20px; }
+    .container { width:100%; max-width:420px; }
+    h1 { text-align:center; }
+    .card { background:#1c1c1c; border-radius:16px; padding:16px; margin-bottom:12px; display:flex; gap:12px; align-items:center; }
+    img { width:64px; height:64px; border-radius:12px; object-fit:cover; }
+    button { background:#fff; color:#000; border:none; border-radius:12px; padding:8px 12px; font-weight:600; cursor:pointer; }
+    input { width:100%; margin-bottom:8px; padding:10px; border-radius:10px; border:none; }
+    .admin { background:#151515; padding:16px; border-radius:16px; margin-bottom:20px; }
+    .hidden { display:none; }
+    .winner { text-align:center; background:#151515; padding:20px; border-radius:20px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎤 Cover Night</h1>
+
+  <div class="admin" id="admin">
+    <h3>Admin</h3>
+    <input id="artistInput" placeholder="Nome cantante" />
+    <input id="songInput" placeholder="Nome canzone" />
+    <input id="photoUrlInput" placeholder="URL immagine" />
+    <button id="addBtn">Aggiungi cover</button>
+    <hr style="margin:12px 0">
+    <button id="addVoteBtn">➕ Aggiungi voto</button>
+    <button id="removeVoteBtn">➖ Togli voto</button>
+    <button id="closeBtn">Chiudi votazioni</button>
+  </div>
+
+  <div id="points"></div>
+  <div id="list"></div>
+  <div id="winner" class="winner hidden"></div>
+</div>
+
 <script>
+// ================= FIREBASE =================
+const firebaseConfig = {
+  apiKey: "AIzaSyC5E-yc4KskjoAsNqArf31l7CLuK4vXYc",
+  authDomain: "covernight-20b1c.firebaseapp.com",
+  projectId: "covernight-20b1c",
+  storageBucket: "covernight-20b1c.firebasestorage.app",
+  messagingSenderId: "624721857728",
+  appId: "1:624721857728:web:ca1b2fc21c351c4cb6f125"
+};
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
@@ -119,3 +174,6 @@ window.toggleCover = async (id) => {
   ref.update({ hidden: !doc.data().hidden });
 };
 </script>
+
+</body>
+</html>
