@@ -99,6 +99,7 @@
       <hr style="margin:12px 0">
       <button id="unlockSecondVoteBtn">AGGIUNGI VOTO</button>
       <button id="removeVoteBtn">TOGLI VOTO</button>
+      <button id="closeBtn">CHIUDI VOTAZIONI</button>
     </div>
 
     <div id="points"></div>
@@ -237,7 +238,33 @@
       });
     });
 
+    // MOSTRA IL VINCITORE
+db.collection("config").doc("state").onSnapshot(async doc => {
+  if (!doc.exists || !doc.data().closed) return;
+
+  const listEl = document.getElementById("list");
+  listEl.classList.add("hidden");
+  pointsEl.classList.add("hidden");
+
+  const winnerEl = document.getElementById("winner");
+  const snap = await db.collection("covers").orderBy("votes", "desc").limit(1).get();
+  if (snap.empty) return;
+
+  const w = snap.docs[0].data();
+
+  winnerEl.innerHTML = `
+    <h2>🏆 Vincitore</h2>
+    <img src="${w.photo}" style="width:120px; border-radius:20px"><br><br>
+    <strong>${w.artist}</strong><br>
+    <small>${w.song}</small><br><br>
+    <p>Voti: ${w.votes}</p>
+  `;
+  winnerEl.classList.remove("hidden");
+});
+
+
   </script>
 </body>
 
 </html>
+
