@@ -131,8 +131,6 @@
     const votesDoc = await db.collection("config").doc("votes").get();
     const currentVotes = votesDoc.exists ? votesDoc.data().allowedVotes : 1;
     await db.collection("config").doc("votes").set({ allowedVotes: currentVotes + 1 });
-    const users = await db.collection("users").get();
-    users.forEach(u => u.ref.update({ allowedVotes: currentVotes + 1 }));
     alert("Voto sbloccato per tutti!");
   };
 
@@ -206,5 +204,6 @@ db.collection("covers").onSnapshot(snap => {
 </script>
 </body>
 </html>
+
 
 
